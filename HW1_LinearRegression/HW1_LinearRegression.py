@@ -32,12 +32,12 @@ for month in range(12):
             y[month * 471 + day * 24 + hour, 0] = month_data[month][9, day * 24 + hour + 9] #value
 
 # Normalizing
-# mean_x = np.mean(x, axis = 0) #18 * 9 
-# std_x = np.std(x, axis = 0) #18 * 9 
-# for i in range(len(x)): #12 * 471
-#     for j in range(len(x[0])): #18 * 9 
-#         if std_x[j] != 0:
-#             x[i][j] = (x[i][j] - mean_x[j]) / std_x[j]
+mean_x = np.mean(x, axis = 0) #18 * 9 
+std_x = np.std(x, axis = 0) #18 * 9 
+for i in range(len(x)): #12 * 471
+    for j in range(len(x[0])): #18 * 9 
+        if std_x[j] != 0:
+            x[i][j] = (x[i][j] - mean_x[j]) / std_x[j]
 
 
 #%%
@@ -70,7 +70,7 @@ np.save('weight.npy', w)
 #%%
 # Training with Adam
 dim = 18 * 9 + 1
-w = np.zeros([dim, 1])
+# w = np.zeros([dim, 1])
 x_train = np.concatenate((np.ones([12 * 471, 1]), x), axis = 1).astype(float)
 learning_rate = 0.001
 iter_time = 500000
@@ -90,7 +90,7 @@ for t in range(1,iter_time,1):
     v_cap = v_t/(1-(beta_2**t))		#calculates the bias-corrected estimates
 
     w = w - (learning_rate*m_cap)/(np.sqrt(v_cap)+eps)	#updates the parameters
-np.save('weight_adam_wo_normalize.npy',w)
+np.save('weight_adam.npy',w)
 #%%
 # read in testdata
 testdata = pd.read_csv('test.csv', header = None, encoding = 'big5')
@@ -98,12 +98,16 @@ test_data = testdata.iloc[:, 2:]
 test_data[test_data == 'NR'] = 0
 test_data = test_data.to_numpy()
 test_x = np.empty([240, 18*9], dtype = float)
+
+test_mean_x = np.mean(test_x, axis = 0) #18 * 9 
+test_std_x = np.std(test_x, axis = 0) #18 * 9 
+
 for i in range(240):
     test_x[i, :] = test_data[18 * i: 18* (i + 1), :].reshape(1, -1)
 for i in range(len(test_x)):
     for j in range(len(test_x[0])):
-        if std_x[j] != 0:
-            test_x[i][j] = (test_x[i][j] - mean_x[j]) / std_x[j]
+        if test_std_x[j] != 0:
+            test_x[i][j] = (test_x[i][j] - test_mean_x[j]) / test_std_x[j]
 test_x = np.concatenate((np.ones([240, 1]), test_x), axis = 1).astype(float)
 
 # %%    
