@@ -1,0 +1,1 @@
+python3 HW1_testing_best.py $1 $2
