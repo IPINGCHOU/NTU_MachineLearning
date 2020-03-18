@@ -55,50 +55,50 @@ np.save('training_std.npy', std_x)
 
 #%%
 # Training with Adagrad
-dim = 18 * 9 + 1
-w = np.zeros([dim, 1])
-x_train = np.concatenate((np.ones([12 * 471, 1]), x), axis = 1).astype(float)
-learning_rate = 50
-iter_time = 100000
-adagrad = np.zeros([dim, 1])
-eps = 1e-7
-for t in range(iter_time):
-    loss = np.sqrt(np.sum(np.power(np.dot(x_train, w) - y, 2))/471/12)#rmse
-    if(t%10000==0):
-        print(str(t) + ":" + str(loss))
-    gradient = 2 * np.dot(x_train.transpose(), np.dot(x_train, w) - y) #dim*1
-    adagrad += gradient ** 2
-    w = w - learning_rate * gradient / np.sqrt(adagrad + eps)
-print(str(t) + ":" + str(loss))
-np.save('weight_adagrad.npy', w)
+# dim = 18 * 9 + 1
+# w = np.zeros([dim, 1])
+# x_train = np.concatenate((np.ones([12 * 471, 1]), x), axis = 1).astype(float)
+# learning_rate = 50
+# iter_time = 100000
+# adagrad = np.zeros([dim, 1])
+# eps = 1e-7
+# for t in range(iter_time):
+#     loss = np.sqrt(np.sum(np.power(np.dot(x_train, w) - y, 2))/471/12)#rmse
+#     if(t%10000==0):
+#         print(str(t) + ":" + str(loss))
+#     gradient = 2 * np.dot(x_train.transpose(), np.dot(x_train, w) - y) #dim*1
+#     adagrad += gradient ** 2
+#     w = w - learning_rate * gradient / np.sqrt(adagrad + eps)
+# print(str(t) + ":" + str(loss))
+# np.save('weight_adagrad.npy', w)
 
 
 #%%
 # Training with Adam
-# dim = 18 * window_size + 1
-# left = 480-window_size
-# w = np.zeros([dim, 1])
-# x_train = np.concatenate((np.ones([12 * left, 1]), x), axis = 1).astype(float)
-# learning_rate = 0.001
-# iter_time = 50000
-# beta_1 = 0.9
-# beta_2 = 0.999
-# eps = 1e-7
-# m_t, v_t = np.zeros([dim,1]), np.zeros([dim,1])
+dim = 18 * window_size + 1
+left = 480-window_size
+w = np.zeros([dim, 1])
+x_train = np.concatenate((np.ones([12 * left, 1]), x), axis = 1).astype(float)
+learning_rate = 0.001
+iter_time = 50000
+beta_1 = 0.9
+beta_2 = 0.999
+eps = 1e-7
+m_t, v_t = np.zeros([dim,1]), np.zeros([dim,1])
 
-# for t in range(1,iter_time,1):
-#     loss = np.sqrt(np.sum(np.power(np.dot(x_train, w) - y, 2))/left/12)#rmse
-#     if(t%10000==0):
-#         print(str(t) + ":" + str(loss))
-#     g_t = 2 * np.dot(x_train.transpose(), np.dot(x_train, w) - y)
-#     m_t = beta_1*m_t + (1-beta_1)*g_t	#updates the moving averages of the gradient
-#     v_t = beta_2*v_t + (1-beta_2)*(g_t**2)	#updates the moving averages of the squared gradient
-#     m_cap = m_t/(1-(beta_1**t))		#calculates the bias-corrected estimates
-#     v_cap = v_t/(1-(beta_2**t))		#calculates the bias-corrected estimates
+for t in range(1,iter_time,1):
+    loss = np.sqrt(np.sum(np.power(np.dot(x_train, w) - y, 2))/left/12)#rmse
+    if(t%10000==0):
+        print(str(t) + ":" + str(loss))
+    g_t = 2 * np.dot(x_train.transpose(), np.dot(x_train, w) - y)
+    m_t = beta_1*m_t + (1-beta_1)*g_t	#updates the moving averages of the gradient
+    v_t = beta_2*v_t + (1-beta_2)*(g_t**2)	#updates the moving averages of the squared gradient
+    m_cap = m_t/(1-(beta_1**t))		#calculates the bias-corrected estimates
+    v_cap = v_t/(1-(beta_2**t))		#calculates the bias-corrected estimates
 
-#     w = w - (learning_rate*m_cap)/(np.sqrt(v_cap)+eps)	#updates the parameters
-# np.save('weight_adam.npy',w)
-# print('weight saved')
+    w = w - (learning_rate*m_cap)/(np.sqrt(v_cap)+eps)	#updates the parameters
+np.save('weight_adam.npy',w)
+print('weight saved')
 #%%
 # read in testdata
 testdata = pd.read_csv('test.csv', header = None, encoding = 'big5')
