@@ -233,4 +233,3 @@ ans_y_train_set_loss =  np.sqrt(np.sum(np.power(np.dot(x_train, w) - y_train_set
 print('Training loss: ' + str(ans_y_train_set_loss))
 print('Validset loss: ' + str(ans_y_validation_loss))
 
-# %%
