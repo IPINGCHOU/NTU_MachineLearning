@@ -22,7 +22,7 @@ for month in range(12):
 
 #%%
 # set a window with size = 10 datas, 1~9th for x and 10th for y
-window_size = 5
+window_size = 9
 def xy_Window(window_size = 9):
     left = 480-window_size
     x = np.empty([12 * left, 18 * window_size], dtype = float)
@@ -38,7 +38,9 @@ def xy_Window(window_size = 9):
     return x,y
 
 x,y = xy_Window(window_size)
-
+print(x)
+print(y)
+print(np.shape(x))
 #%%
 # Normalizing
 mean_x = np.mean(x, axis = 0) #18 * 9 
@@ -50,31 +52,23 @@ for i in range(len(x)): #12 * 471
 
 
 #%%
-# Spliting training and valid set
-import math
-x_train_set = x[: math.floor(len(x) * 0.8), :]
-y_train_set = y[: math.floor(len(y) * 0.8), :]
-x_validation = x[math.floor(len(x) * 0.8): , :]
-y_validation = y[math.floor(len(y) * 0.8): , :]
-
-#%%
 # Training with Adagrad
-dim = 18 * 9 + 1
+# dim = 18 * 9 + 1
 # w = np.zeros([dim, 1])
-x_train = np.concatenate((np.ones([12 * 471, 1]), x), axis = 1).astype(float)
-learning_rate = 50
-iter_time = 500000
-adagrad = np.zeros([dim, 1])
-eps = 1e-7
-for t in range(iter_time):
-    loss = np.sqrt(np.sum(np.power(np.dot(x_train, w) - y, 2))/471/12)#rmse
-    if(t%5000==0):
-        print(str(t) + ":" + str(loss))
-    gradient = 2 * np.dot(x_train.transpose(), np.dot(x_train, w) - y) #dim*1
-    adagrad += gradient ** 2
-    w = w - learning_rate * gradient / np.sqrt(adagrad + eps)
-print(str(t) + ":" + str(loss))
-np.save('weight.npy', w)
+# x_train = np.concatenate((np.ones([12 * 471, 1]), x), axis = 1).astype(float)
+# learning_rate = 50
+# iter_time = 500000
+# adagrad = np.zeros([dim, 1])
+# eps = 1e-7
+# for t in range(iter_time):
+#     loss = np.sqrt(np.sum(np.power(np.dot(x_train, w) - y, 2))/471/12)#rmse
+#     if(t%10000==0):
+#         print(str(t) + ":" + str(loss))
+#     gradient = 2 * np.dot(x_train.transpose(), np.dot(x_train, w) - y) #dim*1
+#     adagrad += gradient ** 2
+#     w = w - learning_rate * gradient / np.sqrt(adagrad + eps)
+# print(str(t) + ":" + str(loss))
+# np.save('weight_adagrad.npy', w)
 
 #%%
 # Training with Adam
@@ -83,7 +77,7 @@ left = 480-window_size
 w = np.zeros([dim, 1])
 x_train = np.concatenate((np.ones([12 * left, 1]), x), axis = 1).astype(float)
 learning_rate = 0.001
-iter_time = 500000
+iter_time = 50000
 beta_1 = 0.9
 beta_2 = 0.999
 eps = 1e-7
@@ -91,7 +85,7 @@ m_t, v_t = np.zeros([dim,1]), np.zeros([dim,1])
 
 for t in range(1,iter_time,1):
     loss = np.sqrt(np.sum(np.power(np.dot(x_train, w) - y, 2))/left/12)#rmse
-    if(t%5000==0):
+    if(t%10000==0):
         print(str(t) + ":" + str(loss))
     g_t = 2 * np.dot(x_train.transpose(), np.dot(x_train, w) - y)
     m_t = beta_1*m_t + (1-beta_1)*g_t	#updates the moving averages of the gradient
@@ -100,7 +94,8 @@ for t in range(1,iter_time,1):
     v_cap = v_t/(1-(beta_2**t))		#calculates the bias-corrected estimates
 
     w = w - (learning_rate*m_cap)/(np.sqrt(v_cap)+eps)	#updates the parameters
-np.save('weight_adam_window5.npy',w)
+np.save('weight_adam_final.npy',w)
+print('weight saved')
 #%%
 # read in testdata
 testdata = pd.read_csv('test.csv', header = None, encoding = 'big5')
@@ -110,22 +105,24 @@ test_data = test_data.to_numpy()
 test_x = np.empty([240, 18*window_size], dtype = float)
 
 for i in range(240):
-    test_x[i, :] = test_data[18 * i: 18* (i + 1), window_size-1:].reshape(1, -1)
+    test_x[i, :] = test_data[18 * i: 18* (i + 1), :].reshape(1, -1)
 test_mean_x = np.mean(test_x, axis = 0) #18 * 9 
 test_std_x = np.std(test_x, axis = 0) #18 * 9 
 
 for i in range(len(test_x)):
     for j in range(len(test_x[0])):
         if test_std_x[j] != 0:
-            test_x[i][j] = (test_x[i][j] - test_mean_x[j]) / test_std_x[j]
+            test_x[i][j] = (test_x[i][j] - mean_x[j]) / std_x[j]
 test_x = np.concatenate((np.ones([240, 1]), test_x), axis = 1).astype(float)
+# print(test_x)
 
 # %%    
-w = np.load('weight_adam_window5.npy')
+# w = np.load('weight_adam_final.npy')
+w = np.load('weight_adam_final.npy')
 ans_y = np.dot(test_x, w)
 
 import csv
-output_file_name = 'submit_adam_window5'
+output_file_name = 'submit_adam_final'
 with open(output_file_name+'.csv', mode='w', newline='') as submit_file:
     csv_writer = csv.writer(submit_file)
     header = ['id', 'value']
