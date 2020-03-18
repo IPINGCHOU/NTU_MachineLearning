@@ -20,17 +20,26 @@ for month in range(12):
         sample[:, day * 24 : (day + 1) * 24] = raw_data[18 * (20 * month + day) : 18 * (20 * month + day + 1), :]
     month_data[month] = sample
 
+#%%
 # set a window with size = 10 datas, 1~9th for x and 10th for y
-x = np.empty([12 * 471, 18 * 9], dtype = float)
-y = np.empty([12 * 471, 1], dtype = float)
-for month in range(12):
-    for day in range(20):
-        for hour in range(24):
-            if day == 19 and hour > 14:
-                continue
-            x[month * 471 + day * 24 + hour, :] = month_data[month][:,day * 24 + hour : day * 24 + hour + 9].reshape(1, -1) #vector dim:18*9 (9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9)
-            y[month * 471 + day * 24 + hour, 0] = month_data[month][9, day * 24 + hour + 9] #value
+window_size = 5
+def xy_Window(window_size = 9):
+    left = 480-window_size
+    x = np.empty([12 * left, 18 * window_size], dtype = float)
+    y = np.empty([12 * left, 1], dtype = float)    
 
+    for month in range(12):
+        for day in range(20):
+            for hour in range(24):
+                if day == 19 and hour > 14:
+                    continue
+                x[month * left + day * 24 + hour, :] = month_data[month][:,day * 24 + hour : day * 24 + hour + window_size].reshape(1, -1) #vector dim:18*9 (9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9 9)
+                y[month * left + day * 24 + hour, 0] = month_data[month][9, day * 24 + hour + window_size] #value
+    return x,y
+
+x,y = xy_Window(window_size)
+
+#%%
 # Normalizing
 mean_x = np.mean(x, axis = 0) #18 * 9 
 std_x = np.std(x, axis = 0) #18 * 9 
@@ -69,9 +78,10 @@ np.save('weight.npy', w)
 
 #%%
 # Training with Adam
-dim = 18 * 9 + 1
-# w = np.zeros([dim, 1])
-x_train = np.concatenate((np.ones([12 * 471, 1]), x), axis = 1).astype(float)
+dim = 18 * window_size + 1
+left = 480-window_size
+w = np.zeros([dim, 1])
+x_train = np.concatenate((np.ones([12 * left, 1]), x), axis = 1).astype(float)
 learning_rate = 0.001
 iter_time = 500000
 beta_1 = 0.9
@@ -80,7 +90,7 @@ eps = 1e-7
 m_t, v_t = np.zeros([dim,1]), np.zeros([dim,1])
 
 for t in range(1,iter_time,1):
-    loss = np.sqrt(np.sum(np.power(np.dot(x_train, w) - y, 2))/471/12)#rmse
+    loss = np.sqrt(np.sum(np.power(np.dot(x_train, w) - y, 2))/left/12)#rmse
     if(t%5000==0):
         print(str(t) + ":" + str(loss))
     g_t = 2 * np.dot(x_train.transpose(), np.dot(x_train, w) - y)
@@ -90,20 +100,20 @@ for t in range(1,iter_time,1):
     v_cap = v_t/(1-(beta_2**t))		#calculates the bias-corrected estimates
 
     w = w - (learning_rate*m_cap)/(np.sqrt(v_cap)+eps)	#updates the parameters
-np.save('weight_adam.npy',w)
+np.save('weight_adam_window5.npy',w)
 #%%
 # read in testdata
 testdata = pd.read_csv('test.csv', header = None, encoding = 'big5')
 test_data = testdata.iloc[:, 2:]
 test_data[test_data == 'NR'] = 0
 test_data = test_data.to_numpy()
-test_x = np.empty([240, 18*9], dtype = float)
+test_x = np.empty([240, 18*window_size], dtype = float)
 
+for i in range(240):
+    test_x[i, :] = test_data[18 * i: 18* (i + 1), window_size-1:].reshape(1, -1)
 test_mean_x = np.mean(test_x, axis = 0) #18 * 9 
 test_std_x = np.std(test_x, axis = 0) #18 * 9 
 
-for i in range(240):
-    test_x[i, :] = test_data[18 * i: 18* (i + 1), :].reshape(1, -1)
 for i in range(len(test_x)):
     for j in range(len(test_x[0])):
         if test_std_x[j] != 0:
@@ -111,11 +121,11 @@ for i in range(len(test_x)):
 test_x = np.concatenate((np.ones([240, 1]), test_x), axis = 1).astype(float)
 
 # %%    
-w = np.load('weight_adam.npy')
+w = np.load('weight_adam_window5.npy')
 ans_y = np.dot(test_x, w)
 
 import csv
-output_file_name = 'submit_adam_1'
+output_file_name = 'submit_adam_window5'
 with open(output_file_name+'.csv', mode='w', newline='') as submit_file:
     csv_writer = csv.writer(submit_file)
     header = ['id', 'value']
@@ -128,11 +138,11 @@ with open(output_file_name+'.csv', mode='w', newline='') as submit_file:
 
 # %%
 # testing MLE
-x_train = np.concatenate((np.ones([12 * 471, 1]), x), axis = 1).astype(float)
-beta = np.linalg.inv(np.dot(x_train.transpose(), x_train))
-beta = beta.dot(x_train.transpose())
-beta = beta.dot(y)
+# x_train = np.concatenate((np.ones([12 * 471, 1]), x), axis = 1).astype(float)
+# beta = np.linalg.inv(np.dot(x_train.transpose(), x_train))
+# beta = beta.dot(x_train.transpose())
+# beta = beta.dot(y)
 
-loss = np.sqrt(np.sum(np.power(np.dot(x_train, beta) - y, 2))/471/12)
-print(loss)
+# loss = np.sqrt(np.sum(np.power(np.dot(x_train, beta) - y, 2))/471/12)
+# print(loss)
 # %%
