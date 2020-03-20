@@ -130,12 +130,12 @@ w = np.zeros((data_dim,))
 b = np.zeros((1,))
 
 # Some parameters for training    
-max_iter = 2000
-batch_size = 20000
-learning_rate = 0.005
-verbose = 200
+max_iter = 10000
+batch_size = 25000
+learning_rate = 0.001
+verbose = 500
 # regularization
-lamb = 100
+lamb = 500
 
 # Keep the loss and accuracy at every iteration for plotting
 train_loss = []
@@ -210,16 +210,12 @@ plt.show()
 # Predict testing labels
 predictions = _predict(X_test, w, b)
 
-if lamb ==0:
-    with open(output_fpath.format('logistic'), 'w') as f:
-        f.write('id,label\n')
-        for i, label in  enumerate(predictions):
-            f.write('{},{}\n'.format(i, label))
-else:
-    with open(output_fpath.format('logistic_lamb' + str(lamb)), 'w') as f:
-        f.write('id,label\n')
-        for i, label in  enumerate(predictions):
-            f.write('{},{}\n'.format(i, label))
+output_filename = 'logistic_lamb100_size2w5_lr0.001'
+
+with open(output_fpath.format(output_filename), 'w') as f:
+    f.write('id,label\n')
+    for i, label in  enumerate(predictions):
+        f.write('{},{}\n'.format(i, label))
 
 # Print out the most significant weights
 ind = np.argsort(np.abs(w))[::-1]
