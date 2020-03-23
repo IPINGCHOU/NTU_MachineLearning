@@ -121,6 +121,10 @@ w = np.dot(inv, mean_0 - mean_1)
 b =  (-0.5) * np.dot(mean_0, np.dot(inv, mean_0)) + 0.5 * np.dot(mean_1, np.dot(inv, mean_1))\
     + np.log(float(X_train_0.shape[0]) / X_train_1.shape[0]) 
 
+np.save('w_generative', w)
+np.save('b_generative', b)
+
+
 # Compute accuracy on training set
 Y_train_pred = 1 - _predict(X_train, w, b)
 print('Training accuracy: {}'.format(_accuracy(Y_train_pred, Y_train)))
