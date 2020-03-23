@@ -54,11 +54,13 @@ nonbinary_col_idx = np.load('nonbinary_col_idx.npy').tolist()
 # nonbinary_col_idx = _find_not_binary(X_train)
 # np.save('nonbinary_col_idx', nonbinary_col_idx)
 
-
-#%%
 # Normalize training and testing data
 X_train, X_mean, X_std = _normalize(X_train, train = True, specified_column = nonbinary_col_idx)
 X_test, _, _= _normalize(X_test, train = False, specified_column = nonbinary_col_idx, X_mean = X_mean, X_std = X_std)
+
+np.save('X_mean_nonbinary', X_mean)
+np.save('X_std_nonbinary', X_std)
+
 
 #%%
 
@@ -138,7 +140,7 @@ def acc_cal(cur_acc_counts, cur_length, predicts, groundTruth, threshold):
     return cur_acc_counts, cur_length
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-print (device)
+print(device)
 hw2_model = hw2_Model(input_dim = data_dim)
 hw2_model.to(device)
 #%%
@@ -222,10 +224,14 @@ for z, (X) in trange_test:
     ans.extend(predicted)
 
 predictions = np.array(ans).reshape(-1)
-output_filename = 'NN_first_try'
+output_filename = 'NN_selected53_allNormalized'
 with open(output_fpath.format(output_filename), 'w') as f:
     f.write('id,label\n')
     for i, label in  enumerate(predictions):
         f.write('{},{}\n'.format(i, label))
 
+# %%
+
+save_model_name = 'NN_first_try'
+torch.save(hw2_model.state_dict(), save_model_name)
 # %%
