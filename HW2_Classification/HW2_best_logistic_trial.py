@@ -71,9 +71,11 @@ nonbinary_col_idx = np.load('nonbinary_col_idx.npy').tolist()
 
 #%%
 # Normalize training and testing data
-X_train, X_mean, X_std = _normalize(X_train, train = True, specified_column = nonbinary_col_idx)
-X_test, _, _= _normalize(X_test, train = False, specified_column = nonbinary_col_idx, X_mean = X_mean, X_std = X_std)
+X_train, X_mean, X_std = _normalize(X_train, train = True, specified_column = None)
+X_test, _, _= _normalize(X_test, train = False, specified_column = None, X_mean = X_mean, X_std = X_std)
 
+np.save('X_mean', X_mean)
+np.save('X_std', X_std)
 #%%
 
 # Split data into training set and development set
@@ -91,43 +93,43 @@ print('Dimension of data: {}'.format(data_dim))
 
 #%%
 # feature importance
-from sklearn.ensemble import RandomForestClassifier
-rf = RandomForestClassifier(n_estimators = 200,
-                           n_jobs = -1,
-                           max_features = None,
-                           min_samples_leaf = 50,
-                           max_depth = 100,
-                           oob_score = True,
-                           bootstrap = True,
-                           random_state = 42)
-rf.fit(X_train, Y_train)
-print('R^2 Training Score: {:.2f} \nOOB Score: {:.2f} \nR^2 Validation Score: {:.2f}'.format(rf.score(X_train, Y_train), 
-                                                                                             rf.oob_score_,
-                                                                                             rf.score(X_dev, Y_dev)))
+# from sklearn.ensemble import RandomForestClassifier
+# rf = RandomForestClassifier(n_estimators = 200,
+#                            n_jobs = -1,
+#                            max_features = None,
+#                            min_samples_leaf = 50,
+#                            max_depth = 100,
+#                            oob_score = True,
+#                            bootstrap = True,
+#                            random_state = 42)
+# rf.fit(X_train, Y_train)
+# print('R^2 Training Score: {:.2f} \nOOB Score: {:.2f} \nR^2 Validation Score: {:.2f}'.format(rf.score(X_train, Y_train), 
+#                                                                                              rf.oob_score_,
+#                                                                                              rf.score(X_dev, Y_dev)))
 
 #%%
-from sklearn.metrics import r2_score
-from rfpimp import permutation_importances
+# from sklearn.metrics import r2_score
+# from rfpimp import permutation_importances
 
-def r2(rf, X_train, y_train):
-    return r2_score(y_train, rf.predict(X_train))
+# def r2(rf, X_train, y_train):
+#     return r2_score(y_train, rf.predict(X_train))
 
-import pandas as pd
-perm_imp_rfpimp = permutation_importances(rf, pd.DataFrame(X_train), pd.DataFrame(Y_train), r2)
+# import pandas as pd
+# perm_imp_rfpimp = permutation_importances(rf, pd.DataFrame(X_train), pd.DataFrame(Y_train), r2)
 
-import seaborn as sns
-ax = sns.barplot(y = 'Importance', x = perm_imp_rfpimp.index, data=perm_imp_rfpimp) 
-#%%
-# chosen one
-first_col = 42
-back_col = 499
-chosen_col = perm_imp_rfpimp.index[0:first_col].tolist()
-chosen_col.extend(perm_imp_rfpimp.index[back_col:])
-data_dim = len(chosen_col)
-print(chosen_col)
+# import seaborn as sns
+# ax = sns.barplot(y = 'Importance', x = perm_imp_rfpimp.index, data=perm_imp_rfpimp) 
+# #%%
+# # chosen one
+# first_col = 42
+# back_col = 499
+# chosen_col = perm_imp_rfpimp.index[0:first_col].tolist()
+# chosen_col.extend(perm_imp_rfpimp.index[back_col:])
+# data_dim = len(chosen_col)
+# print(chosen_col)
 
-X_train = X_train[:,chosen_col]
-X_dev = X_dev[:,chosen_col]
+# X_train = X_train[:,chosen_col]
+# X_dev = X_dev[:,chosen_col]
 
 #%%
 # useful function
@@ -172,43 +174,31 @@ def _cross_entropy_loss(y_pred, Y_label, weight, lamb = 0, pos_weight = 1, punis
     #     Y_label: ground truth labels, bool vector
     # Output:
     #     cross entropy, scalar
-    length = len(Y_label)
-    cross_entropy = punish_weight * ((-pos_weight*np.dot(Y_label, np.log(y_pred)) - np.dot((1 - Y_label), np.log(1 - y_pred)))/length + lamb/(2*length)*np.sum(np.square(weight)))
+    cross_entropy = punish_weight * ((-pos_weight*np.dot(Y_label, np.log(y_pred)) - np.dot((1 - Y_label), np.log(1 - y_pred))) + lamb*np.sum(np.square(weight)))
     return cross_entropy
 
 def _gradient(X, Y_label, w, b, lamb = 0, pos_weight =1, punish_weight = 1):
     # This function computes the gradient of cross entropy loss with respect to weight w and bias b.
     y_pred = _f(X, w, b)
-    length = len(y_pred)
-    pred_error = punish_weight * ((pos_weight*Y_label*(1-y_pred) - (1-Y_label)*y_pred)/length)
-    w_grad = -np.sum(pred_error * X.T, 1) + lamb*w/length
+    pred_error = punish_weight * (pos_weight*Y_label*(1-y_pred) - (1-Y_label)*y_pred)
+    w_grad = -np.sum(pred_error * X.T, 1) + 2*lamb*w
     b_grad = -np.sum(pred_error)
     return w_grad, b_grad
 
-# def _gradient(X, Y_label, w, b, lamb = 0, pos_weight =1):
-#     # This function computes the gradient of cross entropy loss with respect to weight w and bias b.
-#     y_pred = _f(X, w, b)
-#     pred_error = Y_label- y_pred
-#     w_grad = -np.sum(pred_error * X.T, 1) + 2*lamb*w
-#     b_grad = -np.sum(pred_error)
-#     return w_grad, b_grad
-
-
-
 #%%
 # Training step start
-# Zero initialization for weights ans bias
-
-w = np.random.normal(0,1,size = data_dim).reshape((data_dim,))
-b = np.random.normal(0,1,size = 1).reshape((1,))
+# normal initialization for weights ans bias
+print(X_train.shape)
+w = np.zeros((data_dim,)) 
+b = np.zeros((1,))
 
 # Some parameters for training    
-max_iter = 100000
-batch_size = 20000
-learning_rate = 0.1
+max_iter = 2000
+batch_size = 5000
+learning_rate = 0.01
 verbose = 100
 # regularization
-lamb = 0
+# lamb = 1
 pos_weight = 1
 # pos_weight = (len(Y_train)-np.sum(Y_train))/np.sum(Y_train)
 punish_weight = 1
@@ -222,54 +212,90 @@ dev_acc = []
 # Calcuate the number of parameter updates
 step = 1
 
+
+lamb_idx = [0]
+lamb_train_loss, lamb_valid_loss = [],[]
+lamb_train_acc, lamb_valid_acc = [], []
+
 # Iterative training
-for epoch in range(max_iter):
-    # Random shuffle at the begging of each epoch
-    X_train, Y_train = _shuffle(X_train, Y_train)
-        
-    # Mini-batch training
-    for idx in range(int(np.floor(train_size / batch_size))):
-        X = X_train[idx*batch_size:(idx+1)*batch_size]
-        Y = Y_train[idx*batch_size:(idx+1)*batch_size]
+for lamb in lamb_idx:
+    print('======================================')
+    print('Now testing lambda: ' + str(lamb))
+    print('======================================')
+    # initialize 
+    step = 1
+    w = np.zeros((data_dim,)) 
+    b = np.zeros((1,))
 
-        # Compute the gradient
-        w_grad, b_grad = _gradient(X, Y, w, b, lamb, pos_weight, punish_weight)
+    for epoch in range(max_iter):
+        # Random shuffle at the begging of each epoch
+        X_train, Y_train = _shuffle(X_train, Y_train)
             
-        # gradient descent update
-        # learning rate decay with time
-        w = w - learning_rate/np.sqrt(step) * w_grad
-        b = b - learning_rate/np.sqrt(step) * b_grad
+        # Mini-batch training
+        for idx in range(int(np.floor(train_size / batch_size))):
+            X = X_train[idx*batch_size:(idx+1)*batch_size]
+            Y = Y_train[idx*batch_size:(idx+1)*batch_size]
 
-        step = step + 1
-            
-    # Compute loss and accuracy of training set and development set
-    y_train_pred = _f(X_train, w, b)
-    Y_train_pred = np.round(y_train_pred)
-    train_acc.append(_accuracy(Y_train_pred, Y_train))
-    train_loss.append(_cross_entropy_loss(y_train_pred, Y_train, w, lamb, pos_weight, punish_weight) / train_size)
+            # Compute the gradient
+            w_grad, b_grad = _gradient(X, Y, w, b, lamb, pos_weight, punish_weight)
+                
+            # gradient descent update
+            # learning rate decay with time
+            w = w - learning_rate/np.sqrt(step) * w_grad
+            b = b - learning_rate/np.sqrt(step) * b_grad
 
-    y_dev_pred = _f(X_dev, w, b)
-    Y_dev_pred = np.round(y_dev_pred)
-    dev_acc.append(_accuracy(Y_dev_pred, Y_dev))
-    dev_loss.append(_cross_entropy_loss(y_dev_pred, Y_dev, w, lamb, pos_weight, punish_weight) / dev_size)
+            step = step + 1
+                
+        # Compute loss and accuracy of training set and development set
+        y_train_pred = _f(X_train, w, b)
+        Y_train_pred = np.round(y_train_pred)
+        train_acc.append(_accuracy(Y_train_pred, Y_train))
+        train_loss.append(_cross_entropy_loss(y_train_pred, Y_train, w, lamb, pos_weight, punish_weight) / train_size)
 
-    if epoch % verbose == 0:
-        print('======================================')
-        print('Now epoch: ' + str(epoch))
-        print('Now lr   : ' + str(learning_rate/np.sqrt(step)))
-        print('Train loss: ' + str(train_loss[-1]))
-        print('Dev   loss: ' + str(dev_loss[-1]))
-        print('Train  acc: ' + str(train_acc[-1]))
-        print('Dev    acc: ' + str(dev_acc[-1]))
+        y_dev_pred = _f(X_dev, w, b)
+        Y_dev_pred = np.round(y_dev_pred)
+        dev_acc.append(_accuracy(Y_dev_pred, Y_dev))
+        dev_loss.append(_cross_entropy_loss(y_dev_pred, Y_dev, w, lamb, pos_weight, punish_weight) / dev_size)
 
-print('Training loss: {}'.format(train_loss[-1]))
-print('Development loss: {}'.format(dev_loss[-1]))
-print('Training accuracy: {}'.format(train_acc[-1]))
-print('Development accuracy: {}'.format(dev_acc[-1]))
+        if epoch % verbose == 0:
+            print('======================================')
+            print('Now epoch: ' + str(epoch))
+            print('Now lr   : ' + str(learning_rate/np.sqrt(step)))
+            print('Train loss: ' + str(train_loss[-1]))
+            print('Dev   loss: ' + str(dev_loss[-1]))
+            print('Train  acc: ' + str(train_acc[-1]))
+            print('Dev    acc: ' + str(dev_acc[-1]))
 
-# plotting result
+    print('Training loss: {}'.format(train_loss[-1]))
+    print('Development loss: {}'.format(dev_loss[-1]))
+    print('Training accuracy: {}'.format(train_acc[-1]))
+    print('Development accuracy: {}'.format(dev_acc[-1]))
+    lamb_train_loss.append(train_loss[-1])
+    lamb_valid_loss.append(dev_loss[-1])
+    lamb_train_acc.append(train_acc[-1])
+    lamb_valid_acc.append(dev_acc[-1])
+
 #%%
+# plotting result
+# plotting different lambda result
 import matplotlib.pyplot as plt
+plt.plot(lamb_train_loss)
+plt.plot(lamb_valid_loss)
+plt.title('Loss of train and valid with differnet lambda')
+plt.legend(['train','valid'])
+plt.xticks(range(0,5,1), lamb_idx)
+plt.ylabel('Loss')
+plt.xlabel('Lambda')
+plt.show()
+
+plt.plot(lamb_train_acc)
+plt.plot(lamb_valid_acc)
+plt.title('Acc of train and valid with differnet lambda')
+plt.legend(['train','valid'])
+plt.xticks(range(0,5,1), lamb_idx)
+plt.ylabel('Loss')
+plt.xlabel('Lambda')
+plt.show()
 
 # Loss curve
 plt.plot(train_loss)
