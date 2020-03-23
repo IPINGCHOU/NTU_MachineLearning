@@ -1,40 +1,16 @@
-#%%
-# data preprocessing
-
+import sys
 import numpy as np
+import pandas as pd
+pd.options.mode.chained_assignment = None
 
-np.random.seed(0)
-X_train_fpath = './data/X_train'
-Y_train_fpath = './data/Y_train'
-X_test_fpath = './data/X_test'
-output_fpath = './output_{}.csv'
+input_route = sys.argv[5]
+output_route = sys.argv[6]
 
-# Parse csv files to numpy array
-with open(X_train_fpath) as f:
-    next(f)
-    X_train = np.array([line.strip('\n').split(',')[1:] for line in f], dtype = float)
-with open(Y_train_fpath) as f:
-    next(f)
-    Y_train = np.array([line.strip('\n').split(',')[1] for line in f], dtype = float)
-with open(X_test_fpath) as f:
+with open(input_route) as f:
     next(f)
     X_test = np.array([line.strip('\n').split(',')[1:] for line in f], dtype = float)
 
 def _normalize(X, train = True, specified_column = None, X_mean = None, X_std = None):
-    # This function normalizes specific columns of X.
-    # The mean and standard variance of training data will be reused when processing testing data.
-    #
-    # Arguments:
-    #     X: data to be processed
-    #     train: 'True' when processing training data, 'False' for testing data
-    #     specific_column: indexes of the columns that will be normalized. If 'None', all columns
-    #         will be normalized.
-    #     X_mean: mean value of training data, used when train = 'False'
-    #     X_std: standard deviation of training data, used when train = 'False'
-    # Outputs:
-    #     X: normalized data
-    #     X_mean: computed mean value of training data
-    #     X_std: computed standard deviation of training data
 
     if specified_column == None:
         specified_column = np.arange(X.shape[1])
@@ -46,247 +22,88 @@ def _normalize(X, train = True, specified_column = None, X_mean = None, X_std = 
      
     return X, X_mean, X_std
 
-def _train_dev_split(X, Y, dev_ratio = 0.25):
-    # This function spilts data into training set and development set.
-    train_size = int(len(X) * (1 - dev_ratio))
-    return X[:train_size], Y[:train_size], X[train_size:], Y[train_size:]
-
-#%%
-
 nonbinary_col_idx = np.load('nonbinary_col_idx.npy').tolist()
-
-#%%
-# Normalize training and testing data
-X_train, X_mean, X_std = _normalize(X_train, train = True, specified_column = nonbinary_col_idx)
+X_mean, X_std = np.load('X_mean_nonbinary.npy'), np.load('X_std_nonbinary.npy')
 X_test, _, _= _normalize(X_test, train = False, specified_column = nonbinary_col_idx, X_mean = X_mean, X_std = X_std)
 
-train_size = X_train.shape[0]
-test_size = X_test.shape[0]
-data_dim = X_train.shape[1]
-print('Size of training set: {}'.format(train_size))
-print('Size of testing set: {}'.format(test_size))
+import torch
+import torch.nn as nn
+from tqdm import trange
+from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm as tqdm
 
-#%%
-# useful function
-def _shuffle(X, Y):
-    # This function shuffles two equal-length list/array, X and Y, together.
-    randomize = np.arange(len(X))
-    np.random.shuffle(randomize)
-    return (X[randomize], Y[randomize])
+class hw2Dataset(Dataset):
+    def __init__(self,data, train):
+        self.data = data
+        self.train = train
+        self.dim = data.shape[1]
 
-def _sigmoid(z):
-    # Sigmoid function can be used to calculate probability.
-    # To avoid overflow, minimum/maximum output value is set.
-    return np.clip(1 / (1.0 + np.exp(-z)), 1e-8, 1 - (1e-8))
-
-def _f(X, w, b):
-    # This is the logistic regression function, parameterized by w and b
-    #
-    # Arguements:
-    #     X: input data, shape = [batch_size, data_dimension]
-    #     w: weight vector, shape = [data_dimension, ]
-    #     b: bias, scalar
-    # Output:
-    #     predicted probability of each row of X being positively labeled, shape = [batch_size, ]
-    return _sigmoid(np.matmul(X, w) + b)
-
-def _predict(X, w, b):
-    # This function returns a truth value prediction for each row of X 
-    # by rounding the result of logistic regression function.
-    return np.round(_f(X, w, b)).astype(np.int)
+    def __getitem__(self, index):
+        return self.data[index]
     
-def _accuracy(Y_pred, Y_label):
-    # This function calculates prediction accuracy
-    acc = 1 - np.mean(np.abs(Y_pred - Y_label))
-    return acc
+    def __len__(self):
+        return len(self.data)
+    
+    def _collate_fn(self, data):
+        if self.train == True:
+            data = np.array(data)
+            X = data[:,0:self.dim-1]
+            Y = data[:,-1]
+            return torch.cuda.FloatTensor(X), torch.cuda.FloatTensor(Y) 
+        else:
+            return torch.cuda.FloatTensor(data)
 
-#%%
-# cross entropy and gradient
-def _cross_entropy_loss(y_pred, Y_label, weight, lamb = 0, pos_weight = 1, punish_weight = 1):
-    # This function computes the cross entropy.
-    #
-    # Arguements:
-    #     y_pred: probabilistic predictions, float vector
-    #     Y_label: ground truth labels, bool vector
-    # Output:
-    #     cross entropy, scalar
-    cross_entropy = punish_weight * ((-pos_weight*np.dot(Y_label, np.log(y_pred)) - np.dot((1 - Y_label), np.log(1 - y_pred))) + lamb*np.sum(np.square(weight)))
-    return cross_entropy
+class hw2_Model(torch.nn.Module):
+    def __init__(self, input_dim):
+        super(hw2_Model, self).__init__()
 
-def _gradient(X, Y_label, w, b, lamb = 0, pos_weight =1, punish_weight = 1):
-    # This function computes the gradient of cross entropy loss with respect to weight w and bias b.
-    y_pred = _f(X, w, b)
-    pred_error = punish_weight * (pos_weight*Y_label*(1-y_pred) - (1-Y_label)*y_pred)
-    w_grad = -np.sum(pred_error * X.T, 1) + 2*lamb*w
-    b_grad = -np.sum(pred_error)
-    return w_grad, b_grad
+        self.input_dim = input_dim
+        self.seq = nn.Sequential(
+            nn.Linear(self.input_dim, 256),
+            nn.ReLU(),
+            nn.Dropout(0.6),
+            nn.Linear(256, 256),
+            nn.ReLU(),
+            nn.Dropout(0.6),
+            nn.Linear(256, 128),
+            nn.ReLU(),
+            nn.Dropout(0.6),
+            nn.Linear(128, 64),
+            nn.ReLU(),
+            nn.Dropout(0.4),
+            nn.Linear(64, 32),
+            nn.ReLU(),
+            nn.Dropout(0.4),
+            nn.Linear(32, 1)
+        )
 
-# def _gradient(X, Y_label, w, b, lamb = 0, pos_weight =1):
-#     # This function computes the gradient of cross entropy loss with respect to weight w and bias b.
-#     y_pred = _f(X, w, b)
-#     pred_error = Y_label- y_pred
-#     w_grad = -np.sum(pred_error * X.T, 1) + 2*lamb*w
-#     b_grad = -np.sum(pred_error)
-#     return w_grad, b_grad
+    def forward(self, x):
+        return self.seq(x)
 
-chosen_col = [210,
- 507,
- 212,
- 165,
- 175,
- 0,
- 192,
- 191,
- 358,
- 211,
- 116,
- 113,
- 64,
- 62,
- 2,
- 216,
- 173,
- 168,
- 98,
- 134,
- 496,
- 136,
- 161,
- 122,
- 1,
- 294,
- 320,
- 190,
- 18,
- 346,
- 499,
- 112,
- 117,
- 508,
- 355,
- 337,
- 205,
- 350,
- 203,
- 163,
- 162,
- 152,
- 9,
- 414,
- 126,
- 277,
- 151,
- 157,
- 331,
- 69,
- 80,
- 106,
- 4]
-data_dim = len(chosen_col)
-X_train = X_train[:,chosen_col]
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+print(device)
+hw2_model = hw2_Model(input_dim = X_test.shape[1])
+hw2_model.to(device)
+hw2_model.load_state_dict(torch.load('NN_first_try'))
+hw2_model.train(False)
 
-#%%
-# Training step start
-# Zero initialization for weights ans bias
+test_dataset = hw2Dataset(X_test, False)
+test_loader = torch.utils.data.DataLoader(dataset=test_dataset, 
+                                          batch_size=500, 
+                                          collate_fn=test_dataset._collate_fn,
+                                          shuffle=False)
 
-w = np.zeros((data_dim,)) 
-b = np.zeros((1,))
+ans = []
+trange_test = tqdm(enumerate(test_loader), total=len(test_loader), desc = 'Test')
+for z, (X) in trange_test:
+    X = X.to(device)
+    logits = hw2_model(X)
+    predicted = logits > 0.5
+    predicted = predicted.type(torch.uint8).tolist()
+    ans.extend(predicted)
 
-# Some parameters for training    
-max_iter = 20000
-batch_size = 20000
-learning_rate = 0.001
-verbose = 500
-# regularization
-lamb = 10
-#pos_weight = (len(Y_train)-np.sum(Y_train)) / np.sum(Y_train)
-pos_weight = 1
-punish_weight = 1
-
-# Keep the loss and accuracy at every iteration for plotting
-train_loss = []
-dev_loss = []
-train_acc = []
-dev_acc = []
-
-# Calcuate the number of parameter updates
-step = 1
-
-# Iterative training
-for epoch in range(max_iter):
-    # Random shuffle at the begging of each epoch
-    X_train, Y_train = _shuffle(X_train, Y_train)
-        
-    # Mini-batch training
-    for idx in range(int(np.floor(train_size / batch_size))):
-        X = X_train[idx*batch_size:(idx+1)*batch_size]
-        Y = Y_train[idx*batch_size:(idx+1)*batch_size]
-
-        # Compute the gradient
-        w_grad, b_grad = _gradient(X, Y, w, b, lamb, pos_weight, punish_weight)
-            
-        # gradient descent update
-        # learning rate decay with time
-        w = w - learning_rate/np.sqrt(step) * w_grad
-        b = b - learning_rate/np.sqrt(step) * b_grad
-
-        step = step + 1
-            
-    # Compute loss and accuracy of training set and development set
-    y_train_pred = _f(X_train, w, b)
-    Y_train_pred = np.round(y_train_pred)
-    train_acc.append(_accuracy(Y_train_pred, Y_train))
-    train_loss.append(_cross_entropy_loss(y_train_pred, Y_train, w, lamb, pos_weight, punish_weight) / train_size)
-
-    if epoch % verbose == 0:
-        print('======================================')
-        print('Now epoch: ' + str(epoch))
-        print('Train loss: ' + str(train_loss[-1]))
-        print('Train  acc: ' + str(train_acc[-1]))
-
-print('======================================')
-print('done')
-print('Training     loss: {}'.format(train_loss[-1]))
-print('Training accuracy: {}'.format(train_acc[-1]))
-
-# plotting result
-#%%
-import matplotlib.pyplot as plt
-
-# Loss curve
-
-plt.plot(train_loss)
-plt.title('Loss')
-plt.legend(['train'])
-# plt.savefig('loss.png')
-plt.show()
-
-# Accuracy curve
-plt.plot(train_acc)
-plt.title('Accuracy')
-plt.legend(['train'])
-# plt.savefig('acc.png')
-plt.show()
-
-#%%
-# output predictions
-# Predict testing labels
-X_test = X_test[:,chosen_col]
-predictions = _predict(X_test, w, b)
-
-output_filename = 'logistic_lamb10_posw1_pw1_chosencol53'
-
-with open(output_fpath.format(output_filename), 'w') as f:
+predictions = np.array(ans).reshape(-1)
+with open(output_route, 'w') as f:
     f.write('id,label\n')
     for i, label in  enumerate(predictions):
         f.write('{},{}\n'.format(i, label))
-
-# Print out the most significant weights
-ind = np.argsort(np.abs(w))[::-1]
-with open(X_test_fpath) as f:
-    content = f.readline().strip('\n').split(',')
-features = np.array(content)
-for i in ind[0:10]:
-    print(features[i], w[i])
-
-#%%
