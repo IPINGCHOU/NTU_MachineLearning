@@ -47,7 +47,7 @@ Bread, Dairy product, Dessert, Egg, Fried food, Meat, Noodles/Pasta, Rice, Seafo
   + Task4 - Any visualization/explaining method you like - (SHAP)
   
 ## HW6 Adversarial attack - on black box CNN model 
-資料：food-11 dataset
+資料：food-11 dataset <br/>
 目的：attack black box model by FGSM-attack or any other attack for better result <br/>
 Proxy model: (pytorch-pretrained)
   + VGG-16
