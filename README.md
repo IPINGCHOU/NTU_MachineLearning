@@ -61,4 +61,18 @@ Proxy model: (pytorch-pretrained)
   + Strong baseline √ (By basic iterative method FGSM (I-FGSM), eps = 0.03, alpha = 0.005, acc = 0, L-inf = 8.4000) <br/>
   + Also tried One-Pixel-Attack, but with slow computation speed and bad result :(
 
+## HW7 Network Compression 
 
+## HW8 Seq2seq - en 2 cn
+資料：manythings之cmn-eng
+  + train : 18000 sents
+  + valid : 500   sents
+  + test  : 2636  sents  <br/>
+目的：英翻中，每次輸入單一句子  <br/>
+實作：利用 GRU 建立 Seq2Seq 模型，分別實現以下 task 並比較。
+  + Teacher Forcing
+  + Attention Mechanism
+  + Beam Search
+  + Schedule Sampling   <br/>
+此次並無baseline，Beam Search以heapq實現，Schedule sampling選擇使用 Linear, Exponential, Inverse Sigmoid實現。可參見 : https://arxiv.org/abs/1506.03099
+ 
