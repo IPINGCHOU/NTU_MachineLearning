@@ -76,3 +76,14 @@ Proxy model: (pytorch-pretrained)
   + Schedule Sampling   <br/>
 此次並無baseline，Beam Search以heapq實現，Schedule sampling選擇使用 Linear, Exponential, Inverse Sigmoid實現。可參見 : https://arxiv.org/abs/1506.03099
  
+## HW9 Unsupervised Learning
+資料：?
+  + train : 8500pics, 32*32*3
+  + valX : 500pics, 32*32*3
+  + valY : labels, 500 <br/>
+目的 : 將照片分為風景與非風景照 <br/>
+實作 : 建立 autoencoder，並對其降維後分群 <br/>
+  + Simple baseline √ (By tutorial, simple CNN layers, acc = 0.74918) <br/>
+  + Strong baseline √ (By deeper CNN modle and bm for each layer, acc = 0.78941) <br/>
+  + U-Net, simple U-Net with bm, better reconstruction but lower acc :(  (acc = 0.73789)
+
