@@ -1,0 +1,1 @@
+python3 wgan.py $1 $2

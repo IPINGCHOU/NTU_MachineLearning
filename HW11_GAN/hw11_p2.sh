@@ -1,0 +1,1 @@
+python3 wgan_generate.py $1 $2
