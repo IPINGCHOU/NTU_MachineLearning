@@ -86,4 +86,15 @@ Proxy model: (pytorch-pretrained)
   + Simple baseline √ (By tutorial, simple CNN layers, acc = 0.74918) <br/>
   + Strong baseline √ (By deeper CNN modle and bm for each layer, acc = 0.78941) <br/>
   + U-Net, simple U-Net with bm, better reconstruction but lower acc :(  (acc = 0.73789)
+  
+## HW10 Anomaly Detection
+
+## HW11 GAN
+資料：faces by Crypko, https://crypko.ai/#/
++ train : 10000pics, 64*64*3
+目的：訓練出GAN
+實作：DCGAN, WGAN
+此次作業無Kaggle，實作DCGAN觀察mode collapse以及實作WGAN避免mode collapse。詳細列於report.pdf之中
+
+
 
