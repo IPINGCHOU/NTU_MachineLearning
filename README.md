@@ -91,10 +91,19 @@ Proxy model: (pytorch-pretrained)
 
 ## HW11 GAN
 資料：faces by Crypko, https://crypko.ai/#/
-+ train : 10000pics, 64*64*3
++ train : 10000pics, 64*64*3 <br/>
 目的：訓練出GAN
 實作：DCGAN, WGAN
 此次作業無Kaggle，實作DCGAN觀察mode collapse以及實作WGAN避免mode collapse。詳細列於report.pdf之中
 
+## HW12 Transfer Learning
+資料：?
+  + train : 5000 pics, 32*32*3, 10 labels, real RGB images
+  + target : 100,000 pics, 28*28*1, no labels, graffiti images <br/>
+目的：只訓練在train label上，在不需要target label的情況下提升target label的預測準確度。
+實作：DaNN, MSDA
+  + Simple baseline √ (By tutorial DaNN, Source : Canny transfer, acc = 0.57270) <br/>
+  + Strong baseline √ (By MSDA, Source : Canny, Sobel, Laplacian, Gray transfer, acc = 0.75790) <br/>
+MSDA reference : https://github.com/VisionLearningGroup/VisionLearningGroup.github.io/tree/master/M3SDA/code_MSDA_digit
 
 
