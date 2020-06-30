@@ -111,8 +111,12 @@ MSDA reference : https://github.com/VisionLearningGroup/VisionLearningGroup.gith
 ## HW14 Life-long Learning
   pass
 ## HW15 Reinforcement Learning
-資料 : gym - Lunar Lander
-目的：以PG based algorithm讓登陸艇成功登陸月球~
-實作：PG, discount reward with PG, A2C, discount reward with n step info A2C
+資料 : gym - Lunar Lander <br/>
+目的：以PG based algorithm讓登陸艇成功登陸月球~ <br/>
+實作：<br/>
++ PG
++ discount reward with PG
++ A2C
++ discount reward with n step info A2C
 
 
