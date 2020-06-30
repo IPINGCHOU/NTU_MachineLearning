@@ -62,7 +62,7 @@ Proxy model: (pytorch-pretrained)
   + Also tried One-Pixel-Attack, but with slow computation speed and bad result :(
 
 ## HW7 Network Compression 
-
+  pass
 ## HW8 Seq2seq - en 2 cn
 資料：manythings之cmn-eng
   + train : 18000 sents
@@ -105,5 +105,14 @@ Proxy model: (pytorch-pretrained)
   + Simple baseline √ (By tutorial DaNN, Source : Canny transfer, acc = 0.57270) <br/>
   + Strong baseline √ (By MSDA, Source : Canny, Sobel, Laplacian, Gray transfer, acc = 0.75790) <br/>
 MSDA reference : https://github.com/VisionLearningGroup/VisionLearningGroup.github.io/tree/master/M3SDA/code_MSDA_digit
+
+## HW13 Meta Learning
+  pass
+## HW14 Life-long Learning
+  pass
+## HW15 Reinforcement Learning
+資料 : gym - Lunar Lander
+目的：以PG based algorithm讓登陸艇成功登陸月球~
+實作：PG, discount reward with PG, A2C, discount reward with n step info A2C
 
 
